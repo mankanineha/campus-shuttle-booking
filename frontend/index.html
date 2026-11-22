@@ -126,7 +126,9 @@
             <div class="driver-station">
               <span class="steering">⚙️</span>
               <span class="driver-name">Driver: Ramesh K.</span>
-              <span class="coffee-cup">☕</span>
+              <button type="button" id="btn-view-passengers" class="btn-manifest-pill" title="View live passenger list for this shuttle">
+                👥 Passenger Manifest (<span id="manifest-count">0</span>/24)
+              </button>
             </div>
             <div class="bus-door">
               <span>DOOR ➔</span>
@@ -234,8 +236,11 @@
             <div>
               <span class="t-sub">BOOKING REF</span>
               <span id="tkt-ref-code" class="ref-mono">TKT-XXXXXX</span>
+              <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">Scan QR with phone to verify pass</div>
             </div>
-            <div class="barcode-fake">|||| | | ||| |||| | ||| |||</div>
+            <div id="tkt-qr-box">
+              <img id="tkt-qr-img" src="" alt="Ticket QR" style="width: 58px; height: 58px; border-radius: 6px; background: #fff; padding: 2px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+            </div>
           </div>
         </div>
 
@@ -264,6 +269,22 @@
         </div>
       </aside>
     </main>
+  </div>
+
+  <!-- Passenger Manifest Modal -->
+  <div id="manifest-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div>
+          <h3>👥 Live Passenger Manifest</h3>
+          <p id="manifest-sub">Real-time database bookings for this shuttle</p>
+        </div>
+        <button type="button" id="btn-close-manifest" class="modal-close">&times;</button>
+      </div>
+      <div class="manifest-body" id="manifest-list">
+        <div style="text-align: center; color: var(--text-muted); padding: 20px;">Loading passenger roster...</div>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

@@ -112,12 +112,51 @@ async def get_seat_lock_info(seat_id: int) -> Tuple[bool, Optional[str], int]:
         return False, None, 0
 
 
+async def add_to_waitlist(shuttle_id: int, student_id: str, student_name: str) -> int:
+    """Add student to real-time Redis waitlist hash and return total count."""
+    try:
+        r = await get_redis_client()
+        key = f"waitlist:shuttle:{shuttle_id}"
+        await r.hset(key, student_id, student_name)
+        count = await r.hlen(key)
+        return count
+    except Exception as e:
+        logger.error(f"Error adding to waitlist: {str(e)}")
+        return 0
+
+
+async def get_waitlist_count(shuttle_id: int) -> int:
+    """Get active waitlist queue length from Redis."""
+    try:
+        r = await get_redis_client()
+        key = f"waitlist:shuttle:{shuttle_id}"
+        return await r.hlen(key)
+    except Exception as e:
+        logger.error(f"Error fetching waitlist count: {str(e)}")
+        return 0
+
+
+async def clear_waitlist(shuttle_id: Optional[int] = None):
+    """Clear waitlists for demo reset."""
+    try:
+        r = await get_redis_client()
+        if shuttle_id:
+            await r.delete(f"waitlist:shuttle:{shuttle_id}")
+        else:
+            keys = await r.keys("waitlist:shuttle:*")
+            if keys:
+                await r.delete(*keys)
+    except Exception as e:
+        logger.error(f"Error clearing waitlists: {str(e)}")
+
+
 async def clear_all_locks():
-    """Clear all active seat locks for demonstration reset."""
+    """Clear all active seat locks and waitlists for demonstration reset."""
     try:
         r = await get_redis_client()
         keys = await r.keys("lock:seat:*")
         if keys:
             await r.delete(*keys)
+        await clear_waitlist()
     except Exception as e:
         logger.error(f"Error clearing locks: {str(e)}")

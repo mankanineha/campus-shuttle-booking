@@ -23,6 +23,7 @@ from .schemas import (
     LockResponse,
     HealthResponse,
     SystemStatsResponse,
+    WaitlistRequest,
 )
 from .redis_client import (
     acquire_seat_lock,
@@ -31,6 +32,9 @@ from .redis_client import (
     clear_all_locks,
     get_redis_client,
     close_redis_client,
+    add_to_waitlist,
+    get_waitlist_count,
+    clear_waitlist,
 )
 
 logging.basicConfig(level=logging.INFO)
@@ -222,18 +226,107 @@ def list_shuttles(route_id: Optional[int] = None, db: Session = Depends(get_db))
 
 
 @app.get("/api/shuttles/{shuttle_id}/availability")
-def get_shuttle_availability(shuttle_id: int, db: Session = Depends(get_db)):
-    """Returns real-time seat availability summary for a shuttle (useful for 'FULL' banner)."""
+async def get_shuttle_availability(shuttle_id: int, db: Session = Depends(get_db)):
+    """Returns real-time seat availability and active waitlist count for a shuttle."""
     total = db.query(Seat).filter(Seat.shuttle_id == shuttle_id).count()
     booked = db.query(Seat).filter(Seat.shuttle_id == shuttle_id, Seat.is_reserved == True).count()
     if total == 0:
         raise HTTPException(status_code=404, detail="Shuttle not found or has no seats")
+    
+    waitlist_num = await get_waitlist_count(shuttle_id)
+
     return {
         "shuttle_id": shuttle_id,
         "total_seats": total,
         "booked_seats": booked,
         "available_seats": total - booked,
-        "is_fully_booked": booked >= total
+        "is_fully_booked": booked >= total,
+        "waitlist_count": waitlist_num
+    }
+
+
+@app.get("/api/shuttles/{shuttle_id}/passengers")
+def get_shuttle_passengers(shuttle_id: int, db: Session = Depends(get_db)):
+    """Fetch live passenger manifest for a given shuttle."""
+    bookings = (
+        db.query(Booking)
+        .join(Seat)
+        .filter(Seat.shuttle_id == shuttle_id)
+        .order_by(Seat.seat_number)
+        .all()
+    )
+    return [
+        {
+            "seat_number": b.seat.seat_number,
+            "student_id": b.student_id,
+            "student_name": b.student_name,
+            "booking_reference": b.booking_reference,
+            "created_at": b.created_at.strftime("%I:%M %p") if b.created_at else "Just now"
+        }
+        for b in bookings
+    ]
+
+
+@app.post("/api/shuttles/{shuttle_id}/waitlist")
+async def join_shuttle_waitlist(
+    shuttle_id: int,
+    request: WaitlistRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Join waitlist for a full shuttle. When waitlist reaches 3 students,
+    auto-dispatch a relief backup shuttle dynamically (Cloud Elasticity Demonstration).
+    """
+    shuttle = db.query(Shuttle).filter(Shuttle.id == shuttle_id).first()
+    if not shuttle:
+        raise HTTPException(status_code=404, detail="Shuttle not found")
+
+    waitlist_count = await add_to_waitlist(shuttle_id, request.student_id, request.student_name)
+    logger.info(f"[WAITLIST_JOIN] {request.student_name} ({request.student_id}) joined waitlist for Shuttle {shuttle.vehicle_number}. Total: {waitlist_count}")
+
+    # Threshold for auto-dispatching relief bus: 3 students in waitlist
+    THRESHOLD = 3
+    if waitlist_count >= THRESHOLD:
+        # Check if relief bus for this route already exists
+        relief_vehicle_num = f"{shuttle.vehicle_number}-RELIEF"
+        existing_relief = db.query(Shuttle).filter(
+            Shuttle.route_id == shuttle.route_id,
+            Shuttle.vehicle_number == relief_vehicle_num
+        ).first()
+
+        if not existing_relief:
+            logger.info(f"[AUTOSCALING_ELASTICITY] Surge detected ({waitlist_count} waiting)! Auto-dispatching {relief_vehicle_num}")
+            new_shuttle = Shuttle(
+                route_id=shuttle.route_id,
+                vehicle_number=relief_vehicle_num,
+                capacity=24,
+                status="BOARDING"
+            )
+            db.add(new_shuttle)
+            db.commit()
+            db.refresh(new_shuttle)
+
+            # Generate seats for the relief shuttle
+            seat_rows = ["A", "B", "C", "D"]
+            for row_idx in range(1, 7):
+                for seat_letter in seat_rows:
+                    seat_num = f"{row_idx}{seat_letter}"
+                    seat = Seat(shuttle_id=new_shuttle.id, seat_number=seat_num, is_reserved=False)
+                    db.add(seat)
+            db.commit()
+
+            await clear_waitlist(shuttle_id)
+            return {
+                "dispatched": True,
+                "message": f"🚀 Surge threshold reached ({THRESHOLD}+ students)! Relief shuttle {relief_vehicle_num} automatically dispatched with 24 fresh seats!",
+                "relief_shuttle_id": new_shuttle.id,
+                "waitlist_count": 0
+            }
+
+    return {
+        "dispatched": False,
+        "message": f"Added to waitlist! Queue position: {waitlist_count}/{THRESHOLD} needed to auto-dispatch relief shuttle.",
+        "waitlist_count": waitlist_count
     }
 
 
@@ -423,10 +516,16 @@ def list_bookings(db: Session = Depends(get_db)):
 
 @app.post("/api/admin/reset")
 async def reset_demo(db: Session = Depends(get_db)):
-    """Reset all seats and bookings for repeated live demonstrations."""
+    """Reset all seats, bookings, waitlists, and relief shuttles for fresh live demo."""
     await clear_all_locks()
     db.query(Booking).delete()
     db.query(Seat).update({"is_reserved": False})
+
+    # Remove dynamic relief shuttles so baseline 4 shuttles remain
+    relief_shuttles = db.query(Shuttle).filter(Shuttle.vehicle_number.like("%-RELIEF")).all()
+    for s in relief_shuttles:
+        db.delete(s)
+
     db.commit()
-    logger.info("Demo reset: all bookings and locks wiped successfully.")
-    return {"message": "All bookings and locks reset successfully for fresh demo."}
+    logger.info("Demo reset: all bookings, locks, and relief shuttles wiped successfully.")
+    return {"message": "All bookings, waitlists, and relief shuttles reset successfully for fresh demo."}

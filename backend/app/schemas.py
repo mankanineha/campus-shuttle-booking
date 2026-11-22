@@ -67,6 +67,11 @@ class LockResponse(BaseModel):
     expires_in_seconds: int = 30
 
 
+class WaitlistRequest(BaseModel):
+    student_id: str
+    student_name: str
+
+
 class HealthResponse(BaseModel):
     status: str
     pod_name: str

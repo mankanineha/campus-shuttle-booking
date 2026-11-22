@@ -238,13 +238,19 @@ async function loadSeats() {
 
     const isFullyBooked = avail.is_fully_booked;
 
+    // Update manifest passenger count badge in driver bar
+    const manifestCountEl = document.getElementById("manifest-count");
+    if (manifestCountEl) {
+      manifestCountEl.textContent = avail.booked_seats || 0;
+    }
+
     if (isFullyBooked) {
       activeAvailableEl.textContent = `🚫 FULLY BOOKED`;
       activeAvailableEl.style.color = "#ef4444";
       // Disable booking buttons
       btnLockSeat.disabled = true;
       btnConfirmBook.disabled = true;
-      showFullyBookedBanner(avail.total_seats);
+      showFullyBookedBanner(avail.total_seats, avail.waitlist_count || 0);
     } else {
       activeAvailableEl.textContent = `${avail.available_seats} Seats Free`;
       activeAvailableEl.style.color = "";
@@ -257,7 +263,7 @@ async function loadSeats() {
   }
 }
 
-function showFullyBookedBanner(totalSeats) {
+function showFullyBookedBanner(totalSeats, waitlistCount = 0) {
   let banner = document.getElementById("fully-booked-banner");
   if (!banner) {
     banner = document.createElement("div");
@@ -270,20 +276,58 @@ function showFullyBookedBanner(totalSeats) {
       margin: 16px 0;
       text-align: center;
       font-family: inherit;
-      animation: pulse 2s infinite;
-    `;
-    banner.innerHTML = `
-      <div style="font-size: 2rem; margin-bottom: 8px;">🚌❌</div>
-      <div style="font-size: 1.2rem; font-weight: 800; color: #dc2626; margin-bottom: 4px;">
-        This Shuttle Is Fully Booked!
-      </div>
-      <div style="color: #7f1d1d; font-size: 0.9rem;">
-        All ${totalSeats} seats have been reserved. Try resetting the demo or check another route.
-      </div>
+      animation: popIn 0.3s ease;
     `;
     seatGridContainer.parentNode.insertBefore(banner, seatGridContainer);
   }
+
+  banner.innerHTML = `
+    <div style="font-size: 2.2rem; margin-bottom: 6px;">🚌❌</div>
+    <div style="font-size: 1.25rem; font-weight: 800; color: #dc2626; margin-bottom: 4px;">
+      Shuttle ${activeShuttle ? activeShuttle.vehicle_number : ""} is 100% Fully Booked!
+    </div>
+    <div style="color: #7f1d1d; font-size: 0.88rem; max-width: 500px; margin: 0 auto 12px auto;">
+      All ${totalSeats} seats have been reserved. When <strong>3 students join the waitlist</strong>, the cloud system will auto-dispatch a <strong>Relief Backup Shuttle</strong> with 24 extra seats!
+    </div>
+    <div>
+      <button type="button" id="btn-join-waitlist" class="btn-waitlist">
+        📢 Join Waitlist for Relief Bus (${waitlistCount}/3 in queue)
+      </button>
+    </div>
+  `;
   banner.style.display = "block";
+
+  const waitlistBtn = document.getElementById("btn-join-waitlist");
+  if (waitlistBtn) {
+    waitlistBtn.onclick = handleJoinWaitlist;
+  }
+}
+
+async function handleJoinWaitlist() {
+  const studentId = studentIdInput.value.trim() || "STUDENT_" + Math.floor(Math.random() * 9000 + 1000);
+  const studentName = studentNameInput.value.trim() || "Campus Student";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/shuttles/${activeShuttle.id}/waitlist`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ student_id: studentId, student_name: studentName })
+    });
+    const data = await res.json();
+
+    if (data.dispatched) {
+      playSuccessChime();
+      alert(`🚀 CLOUD ELASTICITY TRIGGERED!\n\n${data.message}`);
+      // Reload routes and switch to newly dispatched relief bus
+      await loadRoutesAndShuttle();
+    } else {
+      playTone(550, "sine", 0.15);
+      showToast(data.message, "success");
+      await loadSeats();
+    }
+  } catch (err) {
+    showToast("Error joining waitlist.", "error");
+  }
 }
 
 function hideFullyBookedBanner() {
@@ -488,6 +532,14 @@ document.getElementById("booking-form").addEventListener("submit", async (e) => 
       tktStudentId.textContent = data.student_id;
       tktSeatNo.textContent = data.seat_number;
       tktRefCode.textContent = data.booking_reference;
+
+      // Real Scannable QR Code Generation
+      const qrImg = document.getElementById("tkt-qr-img");
+      if (qrImg) {
+        const qrPayload = encodeURIComponent(`PASS: ${data.booking_reference} | SEAT: ${data.seat_number} | STUDENT: ${data.student_name} (${data.student_id}) | STATUS: CONFIRMED`);
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${qrPayload}`;
+      }
+
       ticketCard.style.display = "block";
 
       selectedSeat = null;
@@ -507,6 +559,59 @@ document.getElementById("booking-form").addEventListener("submit", async (e) => 
     btnConfirmBook.textContent = "✅ Confirm & Get Boarding Pass";
   }
 });
+
+
+// Live Passenger Manifest Modal Logic
+const btnViewPassengers = document.getElementById("btn-view-passengers");
+const manifestModal = document.getElementById("manifest-modal");
+const btnCloseManifest = document.getElementById("btn-close-manifest");
+const manifestList = document.getElementById("manifest-list");
+const manifestSub = document.getElementById("manifest-sub");
+
+async function openManifest() {
+  if (!activeShuttle) return;
+  playTone(480, "sine", 0.08);
+  manifestModal.style.display = "flex";
+  manifestSub.textContent = `Real-time bookings for ${activeShuttle.vehicle_number} (${activeRoute ? activeRoute.source + " ➔ " + activeRoute.destination : ""})`;
+  manifestList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 24px;">Fetching live database roster...</div>`;
+
+  try {
+    const res = await fetch(`${API_BASE}/api/shuttles/${activeShuttle.id}/passengers`);
+    const passengers = await res.json();
+    if (!passengers || passengers.length === 0) {
+      manifestList.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 30px;">No confirmed passengers yet. Be the first to book a seat!</div>`;
+      return;
+    }
+    manifestList.innerHTML = "";
+    passengers.forEach(p => {
+      const row = document.createElement("div");
+      row.className = "manifest-row";
+      row.innerHTML = `
+        <div class="manifest-seat-badge">${p.seat_number}</div>
+        <div class="manifest-student-info">
+          <div class="manifest-student-name">${p.student_name}</div>
+          <div class="manifest-student-id">ID: ${p.student_id} • Ref: ${p.booking_reference}</div>
+        </div>
+        <div class="manifest-time">${p.created_at}</div>
+      `;
+      manifestList.appendChild(row);
+    });
+  } catch (err) {
+    manifestList.innerHTML = `<div style="text-align: center; color: var(--alert-red); padding: 20px;">Error loading manifest.</div>`;
+  }
+}
+
+function closeManifest() {
+  manifestModal.style.display = "none";
+}
+
+if (btnViewPassengers) btnViewPassengers.onclick = openManifest;
+if (btnCloseManifest) btnCloseManifest.onclick = closeManifest;
+if (manifestModal) {
+  manifestModal.onclick = (e) => {
+    if (e.target === manifestModal) closeManifest();
+  };
+}
 
 
 // Reset Demo
