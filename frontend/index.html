@@ -108,6 +108,11 @@
           </div>
         </div>
 
+        <!-- Shuttle Fleet Selector Tabs (Appears when route has multiple or relief buses) -->
+        <div class="shuttle-tabs-row" id="shuttle-tabs-container" style="display: none;">
+          <!-- Dynamically populated shuttle buttons -->
+        </div>
+
         <!-- Physical Bus Schematic -->
         <div class="bus-wrapper">
           <!-- Bus Windshield & Front Bumper -->
@@ -116,7 +121,7 @@
             <div class="windshield-glass">
               <span class="windshield-wiper left"></span>
               <span class="windshield-wiper right"></span>
-              <span class="bus-number-sign">SHUTTLE 01 • CAMPUS EXPRESS</span>
+              <span class="bus-number-sign" id="bus-sign-display">SHUTTLE 01 • CAMPUS EXPRESS</span>
             </div>
             <div class="headlight right"></div>
           </div>

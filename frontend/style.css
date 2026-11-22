@@ -1148,6 +1148,69 @@ button:disabled {
   box-shadow: 0 6px 16px rgba(245, 158, 11, 0.4);
 }
 
+/* Shuttle Fleet Switcher Tabs */
+.shuttle-tabs-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border-radius: 12px;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  align-items: center;
+  overflow-x: auto;
+}
+
+.shuttle-tab-btn {
+  background: var(--bg-card);
+  border: 1.5px solid var(--bg-card-border);
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.shuttle-tab-btn:hover {
+  border-color: var(--bus-yellow);
+  color: #fff;
+}
+
+.shuttle-tab-btn.active {
+  background: #1e293b;
+  border-color: var(--bus-yellow);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.25);
+}
+
+.shuttle-tab-btn.relief {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+.shuttle-tab-btn.relief.active {
+  background: rgba(16, 185, 129, 0.25);
+  border-color: #34d399;
+  box-shadow: 0 2px 12px rgba(16, 185, 129, 0.35);
+}
+
+.relief-badge {
+  background: var(--transit-green);
+  color: #042f2e;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.95); }

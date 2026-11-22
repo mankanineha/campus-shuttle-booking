@@ -48,6 +48,8 @@ const activeAvailableEl = document.getElementById("active-available");
 const seatGridContainer = document.getElementById("seat-grid-container");
 const routeCardsContainer = document.getElementById("route-cards-container");
 const btnQuickRandomStudent = document.getElementById("btn-quick-random-student");
+const shuttleTabsContainer = document.getElementById("shuttle-tabs-container");
+const busSignDisplay = document.getElementById("bus-sign-display");
 
 const studentIdInput = document.getElementById("student-id");
 const studentNameInput = document.getElementById("student-name");
@@ -179,18 +181,66 @@ async function selectRoute(route) {
   // Highlight card
   renderRouteCards(cachedRoutes);
 
-  // Fetch shuttle for this route
+  // Fetch shuttles for this route
   try {
     const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
     const shuttles = await shuttlesRes.json();
+    currentRouteShuttles = shuttles || [];
     if (shuttles && shuttles.length > 0) {
-      activeShuttle = shuttles[0];
-      activeVehicleNoEl.textContent = activeShuttle.vehicle_number;
-      await loadSeats();
+      selectShuttle(shuttles[0]);
     }
   } catch (err) {
     showToast("Error switching shuttle route.", "error");
   }
+}
+
+let currentRouteShuttles = [];
+
+function renderShuttleTabs(shuttles) {
+  if (!shuttleTabsContainer) return;
+  if (!shuttles || shuttles.length <= 1) {
+    shuttleTabsContainer.style.display = "none";
+    return;
+  }
+
+  shuttleTabsContainer.style.display = "flex";
+  shuttleTabsContainer.innerHTML = `<span style="font-size: 0.74rem; font-weight: 700; color: var(--text-muted); margin-right: 4px;">FLEET:</span>`;
+
+  shuttles.forEach((s, idx) => {
+    const isRelief = s.vehicle_number.includes("-RELIEF");
+    const isActive = activeShuttle && activeShuttle.id === s.id;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = `shuttle-tab-btn ${isRelief ? "relief" : ""} ${isActive ? "active" : ""}`;
+
+    btn.innerHTML = `
+      <span>${isRelief ? "🚀 Relief Bus " + (idx + 1) : "🚌 Bus " + (idx + 1)}: ${s.vehicle_number}</span>
+      ${isRelief ? '<span class="relief-badge">SURGE EXTRA</span>' : ''}
+    `;
+
+    btn.onclick = () => selectShuttle(s);
+    shuttleTabsContainer.appendChild(btn);
+  });
+}
+
+function selectShuttle(shuttle) {
+  activeShuttle = shuttle;
+  activeVehicleNoEl.textContent = shuttle.vehicle_number;
+  if (busSignDisplay) {
+    busSignDisplay.textContent = shuttle.vehicle_number.includes("-RELIEF")
+      ? `🚨 RELIEF SHUTTLE • ${shuttle.vehicle_number}`
+      : `SHUTTLE • ${shuttle.vehicle_number}`;
+  }
+
+  // Clear current seat selection & timer
+  if (currentLockTimer) clearInterval(currentLockTimer);
+  lockStatusBox.style.display = "none";
+  selectedSeat = null;
+  btnLockSeat.disabled = true;
+  btnConfirmBook.disabled = true;
+
+  renderShuttleTabs(currentRouteShuttles);
+  loadSeats();
 }
 
 
@@ -209,14 +259,14 @@ async function loadRoutesAndShuttle() {
         if (routeDepartTimeEl) {
           routeDepartTimeEl.textContent = `Depart: ${activeRoute.departure_time || "08:30 AM"}`;
         }
+      }
 
-        const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
-        const shuttles = await shuttlesRes.json();
-        if (shuttles && shuttles.length > 0) {
-          activeShuttle = shuttles[0];
-          activeVehicleNoEl.textContent = activeShuttle.vehicle_number;
-          await loadSeats();
-        }
+      const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
+      const shuttles = await shuttlesRes.json();
+      currentRouteShuttles = shuttles || [];
+      if (shuttles && shuttles.length > 0) {
+        const match = shuttles.find(s => activeShuttle && s.id === activeShuttle.id);
+        selectShuttle(match || shuttles[0]);
       }
     }
   } catch (err) {
@@ -318,8 +368,18 @@ async function handleJoinWaitlist() {
     if (data.dispatched) {
       playSuccessChime();
       alert(`🚀 CLOUD ELASTICITY TRIGGERED!\n\n${data.message}`);
-      // Reload routes and switch to newly dispatched relief bus
-      await loadRoutesAndShuttle();
+      
+      // Refetch shuttles for current route to include the newly auto-dispatched relief bus
+      const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
+      const shuttles = await shuttlesRes.json();
+      currentRouteShuttles = shuttles || [];
+
+      // Automatically switch to the newly dispatched relief shuttle!
+      const reliefShuttle = shuttles.find(s => s.id === data.relief_shuttle_id) || shuttles[shuttles.length - 1];
+      if (reliefShuttle) {
+        selectShuttle(reliefShuttle);
+        showToast(`🎉 Switched to relief bus ${reliefShuttle.vehicle_number}! 24 fresh seats open.`, "success");
+      }
     } else {
       playTone(550, "sine", 0.15);
       showToast(data.message, "success");
