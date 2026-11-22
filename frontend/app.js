@@ -698,14 +698,19 @@ document.getElementById("booking-form").addEventListener("submit", async (e) => 
 
       // Real Scannable QR Code Generation (points directly to official verified pass URL)
       const qrImg = document.getElementById("tkt-qr-img");
-      if (qrImg) {
-        const busNum = activeShuttle ? activeShuttle.vehicle_number : "CAMPUS-EXPRESS-01";
-        const routeName = activeRoute ? `${activeRoute.source} ➔ ${activeRoute.destination}` : "Campus Transit";
-        const origin = window.location.origin;
-        const verifyUrl = `${origin}/verify.html?ref=${encodeURIComponent(data.booking_reference)}&seat=${encodeURIComponent(data.seat_number)}&name=${encodeURIComponent(data.student_name)}&id=${encodeURIComponent(data.student_id)}&bus=${encodeURIComponent(busNum)}&route=${encodeURIComponent(routeName)}`;
+      const qrLink = document.getElementById("tkt-qr-link");
+      const viewPassBtn = document.getElementById("tkt-view-pass-btn");
 
+      const busNum = activeShuttle ? activeShuttle.vehicle_number : "CAMPUS-EXPRESS-01";
+      const routeName = activeRoute ? `${activeRoute.source} ➔ ${activeRoute.destination}` : "Campus Transit";
+      const origin = window.location.origin;
+      const verifyUrl = `${origin}/verify.html?ref=${encodeURIComponent(data.booking_reference)}&seat=${encodeURIComponent(data.seat_number)}&name=${encodeURIComponent(data.student_name)}&id=${encodeURIComponent(data.student_id)}&bus=${encodeURIComponent(busNum)}&route=${encodeURIComponent(routeName)}`;
+
+      if (qrLink) qrLink.href = verifyUrl;
+      if (viewPassBtn) viewPassBtn.href = verifyUrl;
+      if (qrImg) {
         const qrPayload = encodeURIComponent(verifyUrl);
-        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${qrPayload}`;
+        qrImg.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${qrPayload}`;
       }
 
       ticketCard.style.display = "block";

@@ -246,10 +246,16 @@
             <div>
               <span class="t-sub">BOOKING REF</span>
               <span id="tkt-ref-code" class="ref-mono">TKT-XXXXXX</span>
-              <div style="font-size: 0.68rem; color: #64748b; margin-top: 2px;">Scan QR with phone to verify pass</div>
+              <div style="margin-top: 5px;">
+                <a id="tkt-view-pass-btn" href="#" target="_blank" style="font-size: 0.73rem; color: #38bdf8; text-decoration: none; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
+                  📱 Open Verified Pass ↗
+                </a>
+              </div>
             </div>
             <div id="tkt-qr-box">
-              <img id="tkt-qr-img" src="" alt="Ticket QR" style="width: 58px; height: 58px; border-radius: 6px; background: #fff; padding: 2px; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+              <a id="tkt-qr-link" href="#" target="_blank" title="Tap or scan to open official verified pass">
+                <img id="tkt-qr-img" src="" alt="Ticket QR" style="width: 64px; height: 64px; border-radius: 6px; background: #fff; padding: 3px; box-shadow: 0 2px 8px rgba(0,0,0,0.3); display: block;">
+              </a>
             </div>
           </div>
         </div>
