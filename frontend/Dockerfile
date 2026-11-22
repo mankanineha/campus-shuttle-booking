@@ -5,6 +5,7 @@ RUN apk add --no-cache gettext
 
 # Copy static assets
 COPY index.html /usr/share/nginx/html/
+COPY verify.html /usr/share/nginx/html/
 COPY style.css /usr/share/nginx/html/
 COPY app.js /usr/share/nginx/html/
 

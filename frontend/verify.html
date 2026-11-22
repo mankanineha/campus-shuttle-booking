@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ticket Verification Pass | Campus Hopper 🚌</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0b1120;
+      --card-bg: #141e33;
+      --border: #233554;
+      --green: #10b981;
+      --yellow: #f59e0b;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background-image: 
+        radial-gradient(circle at 10% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 45%),
+        radial-gradient(circle at 90% 80%, rgba(245, 158, 11, 0.1) 0%, transparent 45%);
+    }
+    .pass-card {
+      background: var(--card-bg);
+      border: 2px solid var(--border);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 440px;
+      overflow: hidden;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+      animation: popIn 0.3s ease;
+    }
+    .pass-header {
+      background: linear-gradient(135deg, #064e3b, #042f2e);
+      border-bottom: 2px solid #10b981;
+      padding: 24px 20px;
+      text-align: center;
+      position: relative;
+    }
+    .check-icon {
+      width: 58px;
+      height: 58px;
+      background: var(--green);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin: 0 auto 12px auto;
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.5);
+    }
+    .pass-header h1 {
+      font-size: 1.25rem;
+      font-weight: 800;
+      color: #fff;
+      letter-spacing: -0.01em;
+    }
+    .pass-header p {
+      font-size: 0.8rem;
+      color: #6ee7b7;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-top: 4px;
+      font-weight: 700;
+    }
+    .pass-body {
+      padding: 24px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .seat-hero {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1.5px dashed rgba(245, 158, 11, 0.4);
+      border-radius: 14px;
+      padding: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .seat-hero-left .label {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .seat-hero-left .bus-name {
+      font-size: 0.95rem;
+      font-weight: 800;
+      color: #fff;
+      margin-top: 2px;
+    }
+    .seat-badge {
+      background: var(--yellow);
+      color: #000;
+      font-size: 1.7rem;
+      font-weight: 800;
+      padding: 8px 16px;
+      border-radius: 10px;
+      font-family: 'Space Grotesk', monospace;
+      box-shadow: 0 4px 12px rgba(245, 158, 11, 0.35);
+    }
+    .info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .info-cell {
+      background: rgba(15, 23, 42, 0.4);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+    .info-cell.full-width {
+      grid-column: span 2;
+    }
+    .info-cell .label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .info-cell .value {
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #fff;
+      margin-top: 3px;
+      word-break: break-word;
+    }
+    .ref-code {
+      font-family: 'Space Grotesk', monospace;
+      color: #38bdf8;
+    }
+    .notch-row {
+      position: relative;
+      height: 20px;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .notch-row::before, .notch-row::after {
+      content: '';
+      position: absolute;
+      top: -10px;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--bg);
+    }
+    .notch-row::before { left: -10px; }
+    .notch-row::after { right: -10px; }
+    .notch-line {
+      width: 85%;
+      border-top: 2px dashed #334155;
+    }
+    .pass-footer {
+      background: #0f172a;
+      padding: 18px 22px;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .status-pill {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid var(--green);
+      color: var(--green);
+      font-size: 0.8rem;
+      font-weight: 800;
+      padding: 6px 12px;
+      border-radius: 20px;
+      display: inline-block;
+      margin: 0 auto;
+      letter-spacing: 0.04em;
+    }
+    .btn-home {
+      display: inline-block;
+      background: #3b82f6;
+      color: #fff;
+      text-decoration: none;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+      transition: background 0.2s ease;
+    }
+    .btn-home:hover {
+      background: #2563eb;
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="pass-card">
+    <div class="pass-header">
+      <div class="check-icon">✓</div>
+      <h1>BOARDING PASS VERIFIED</h1>
+      <p>Campus Hopper University Transit</p>
+    </div>
+
+    <div class="pass-body">
+      <!-- Seat & Vehicle Banner -->
+      <div class="seat-hero">
+        <div class="seat-hero-left">
+          <div class="label">ASSIGNED VEHICLE</div>
+          <div class="bus-name" id="val-bus">CAMPUS-EXPRESS-01</div>
+        </div>
+        <div class="seat-badge" id="val-seat">--</div>
+      </div>
+
+      <!-- Details Grid -->
+      <div class="info-grid">
+        <div class="info-cell">
+          <div class="label">PASSENGER NAME</div>
+          <div class="value" id="val-name">--</div>
+        </div>
+        <div class="info-cell">
+          <div class="label">STUDENT ID / ROLL</div>
+          <div class="value" id="val-id">--</div>
+        </div>
+        <div class="info-cell full-width">
+          <div class="label">TRANSIT ROUTE</div>
+          <div class="value" id="val-route">Hostel Complex ➔ Main Academic Block</div>
+        </div>
+        <div class="info-cell full-width">
+          <div class="label">TICKET REFERENCE CODE</div>
+          <div class="value ref-code" id="val-ref">TKT-XXXXXX</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="notch-row">
+      <div class="notch-line"></div>
+    </div>
+
+    <div class="pass-footer">
+      <div>
+        <span class="status-pill">● CONFIRMED & VALID FOR ENTRY</span>
+      </div>
+      <div style="font-size: 0.72rem; color: var(--muted);">
+        Verified via PostgreSQL distributed row-level locks & Redis SETNX
+      </div>
+      <div>
+        <a href="/" class="btn-home">➔ Open Shuttle Booking App</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Parse query params from URL
+    const params = new URLSearchParams(window.location.search);
+    const ref = params.get("ref") || "TKT-" + Math.random().toString(16).substring(2, 8).toUpperCase();
+    const seat = params.get("seat") || "1A";
+    const name = params.get("name") || "Student Passenger";
+    const id = params.get("id") || "21BCE1042";
+    const bus = params.get("bus") || "CAMPUS-EXPRESS-01";
+    const route = params.get("route") || "Hostel Complex ➔ Academic Block";
+
+    document.getElementById("val-ref").textContent = ref;
+    document.getElementById("val-seat").textContent = seat;
+    document.getElementById("val-name").textContent = name;
+    document.getElementById("val-id").textContent = id;
+    document.getElementById("val-bus").textContent = bus;
+    document.getElementById("val-route").textContent = route;
+  </script>
+</body>
+</html>
