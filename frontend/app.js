@@ -50,6 +50,9 @@ const routeCardsContainer = document.getElementById("route-cards-container");
 const btnQuickRandomStudent = document.getElementById("btn-quick-random-student");
 const shuttleTabsContainer = document.getElementById("shuttle-tabs-container");
 const busSignDisplay = document.getElementById("bus-sign-display");
+const turnaroundDivider = document.getElementById("turnaround-divider");
+const turnaroundStatCell = document.getElementById("turnaround-stat-cell");
+const turnaroundTimerDisplay = document.getElementById("turnaround-timer-display");
 
 const studentIdInput = document.getElementById("student-id");
 const studentNameInput = document.getElementById("student-name");
@@ -275,6 +278,54 @@ async function loadRoutesAndShuttle() {
 }
 
 
+let turnaroundRemainingSeconds = 1800; // 30 mins (15 mins x 2 round-trip turnaround)
+let turnaroundInterval = null;
+let autoRedirectTimeout = null;
+
+function startTurnaroundTimer() {
+  if (turnaroundDivider) turnaroundDivider.style.display = "block";
+  if (turnaroundStatCell) turnaroundStatCell.style.display = "block";
+
+  if (turnaroundInterval) return;
+
+  turnaroundInterval = setInterval(() => {
+    turnaroundRemainingSeconds--;
+    if (turnaroundRemainingSeconds <= 0) {
+      clearInterval(turnaroundInterval);
+      turnaroundInterval = null;
+      turnaroundRemainingSeconds = 1800;
+      showToast("🔄 Shuttle return turnaround completed! Bus refreshed for next departure cycle.", "success");
+      fetch(`${API_BASE}/api/admin/reset`, { method: "POST" }).then(() => loadSeats());
+      return;
+    }
+
+    const mins = Math.floor(turnaroundRemainingSeconds / 60);
+    const secs = turnaroundRemainingSeconds % 60;
+    const formatted = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+    if (turnaroundTimerDisplay) {
+      turnaroundTimerDisplay.textContent = formatted;
+    }
+    const liveTimerInBanner = document.getElementById("banner-turnaround-timer");
+    if (liveTimerInBanner) {
+      liveTimerInBanner.textContent = formatted;
+    }
+  }, 1000);
+}
+
+function stopTurnaroundTimer() {
+  if (turnaroundInterval) {
+    clearInterval(turnaroundInterval);
+    turnaroundInterval = null;
+  }
+  turnaroundRemainingSeconds = 1800;
+  if (turnaroundDivider) turnaroundDivider.style.display = "none";
+  if (turnaroundStatCell) turnaroundStatCell.style.display = "none";
+  if (autoRedirectTimeout) {
+    clearTimeout(autoRedirectTimeout);
+    autoRedirectTimeout = null;
+  }
+}
+
 async function loadSeats() {
   if (!activeShuttle) return;
 
@@ -297,13 +348,14 @@ async function loadSeats() {
     if (isFullyBooked) {
       activeAvailableEl.textContent = `🚫 FULLY BOOKED`;
       activeAvailableEl.style.color = "#ef4444";
-      // Disable booking buttons
       btnLockSeat.disabled = true;
       btnConfirmBook.disabled = true;
+      startTurnaroundTimer();
       showFullyBookedBanner(avail.total_seats, avail.waitlist_count || 0);
     } else {
       activeAvailableEl.textContent = `${avail.available_seats} Seats Free`;
       activeAvailableEl.style.color = "";
+      stopTurnaroundTimer();
       hideFullyBookedBanner();
     }
 
@@ -331,26 +383,77 @@ function showFullyBookedBanner(totalSeats, waitlistCount = 0) {
     seatGridContainer.parentNode.insertBefore(banner, seatGridContainer);
   }
 
-  banner.innerHTML = `
-    <div style="font-size: 2.2rem; margin-bottom: 6px;">🚌❌</div>
-    <div style="font-size: 1.25rem; font-weight: 800; color: #dc2626; margin-bottom: 4px;">
-      Shuttle ${activeShuttle ? activeShuttle.vehicle_number : ""} is 100% Fully Booked!
-    </div>
-    <div style="color: #7f1d1d; font-size: 0.88rem; max-width: 500px; margin: 0 auto 12px auto;">
-      All ${totalSeats} seats have been reserved. When <strong>3 students join the waitlist</strong>, the cloud system will auto-dispatch a <strong>Relief Backup Shuttle</strong> with 24 extra seats!
-    </div>
-    <div>
-      <button type="button" id="btn-join-waitlist" class="btn-waitlist">
-        📢 Join Waitlist for Relief Bus (${waitlistCount}/3 in queue)
-      </button>
-    </div>
-  `;
-  banner.style.display = "block";
+  // Format current minutes and seconds for the banner clock
+  const mins = Math.floor(turnaroundRemainingSeconds / 60);
+  const secs = turnaroundRemainingSeconds % 60;
+  const timerStr = `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
 
-  const waitlistBtn = document.getElementById("btn-join-waitlist");
-  if (waitlistBtn) {
-    waitlistBtn.onclick = handleJoinWaitlist;
+  // Check if a Relief Shuttle already exists for this route
+  const reliefBus = currentRouteShuttles.find(
+    s => s.vehicle_number.includes("-RELIEF") && s.id !== activeShuttle.id
+  );
+
+  if (reliefBus) {
+    // Relief bus already exists! Auto-redirect in 3.5 seconds
+    banner.innerHTML = `
+      <div style="font-size: 2.2rem; margin-bottom: 6px;">🚌💨</div>
+      <div style="font-size: 1.25rem; font-weight: 800; color: #dc2626; margin-bottom: 4px;">
+        Shuttle ${activeShuttle ? activeShuttle.vehicle_number : ""} Departed (100% Full)!
+      </div>
+      <div style="color: #7f1d1d; font-size: 0.88rem; max-width: 520px; margin: 0 auto 10px auto;">
+        15-min campus journey underway. Round-trip turnaround return in: <strong id="banner-turnaround-timer" style="color: #dc2626; font-family: monospace; font-size: 1.05rem;">${timerStr}</strong>.
+      </div>
+      <div style="background: rgba(16, 185, 129, 0.15); border: 1.5px solid #10b981; border-radius: 8px; padding: 10px; margin: 12px auto; max-width: 440px; color: #065f46; font-weight: 700; font-size: 0.85rem;">
+        🚀 Relief Backup Bus <strong>${reliefBus.vehicle_number}</strong> is active! Auto-switching your screen...
+      </div>
+      <div>
+        <button type="button" id="btn-redirect-relief" class="btn-waitlist" style="background: linear-gradient(135deg, #10b981, #059669); color: #fff;">
+          🚀 Switch to Surge Relief Bus Now ➔
+        </button>
+      </div>
+    `;
+
+    const redirectBtn = document.getElementById("btn-redirect-relief");
+    if (redirectBtn) {
+      redirectBtn.onclick = () => {
+        if (autoRedirectTimeout) clearTimeout(autoRedirectTimeout);
+        selectShuttle(reliefBus);
+      };
+    }
+
+    if (!autoRedirectTimeout) {
+      autoRedirectTimeout = setTimeout(() => {
+        selectShuttle(reliefBus);
+        showToast(`Switched to Surge Relief Bus ${reliefBus.vehicle_number}!`, "success");
+      }, 3500);
+    }
+  } else {
+    // No relief bus yet — offer auto-dispatching button
+    banner.innerHTML = `
+      <div style="font-size: 2.2rem; margin-bottom: 6px;">🚌❌</div>
+      <div style="font-size: 1.25rem; font-weight: 800; color: #dc2626; margin-bottom: 4px;">
+        Shuttle ${activeShuttle ? activeShuttle.vehicle_number : ""} is 100% Fully Booked!
+      </div>
+      <div style="color: #7f1d1d; font-size: 0.88rem; max-width: 520px; margin: 0 auto 10px auto;">
+        All ${totalSeats} seats reserved. 15-min ride underway (Turnaround return in: <strong id="banner-turnaround-timer" style="color: #dc2626; font-family: monospace;">${timerStr}</strong>).
+      </div>
+      <div style="color: #991b1b; font-size: 0.82rem; margin-bottom: 12px;">
+        Tap below to request surge capacity — the cloud will auto-dispatch a <strong>Relief Backup Shuttle</strong> with 24 extra seats!
+      </div>
+      <div>
+        <button type="button" id="btn-join-waitlist" class="btn-waitlist">
+          ⚡ Auto-Dispatch Surge Relief Bus (${waitlistCount}/3 in queue) ➔
+        </button>
+      </div>
+    `;
+
+    const waitlistBtn = document.getElementById("btn-join-waitlist");
+    if (waitlistBtn) {
+      waitlistBtn.onclick = handleJoinWaitlist;
+    }
   }
+
+  banner.style.display = "block";
 }
 
 async function handleJoinWaitlist() {
