@@ -42,9 +42,12 @@ function playRejectSound() {
 const currentPodNameEl = document.getElementById("current-pod-name");
 const routeOriginEl = document.getElementById("route-origin");
 const routeDestinationEl = document.getElementById("route-destination");
+const routeDepartTimeEl = document.getElementById("route-depart-time");
 const activeVehicleNoEl = document.getElementById("active-vehicle-no");
 const activeAvailableEl = document.getElementById("active-available");
 const seatGridContainer = document.getElementById("seat-grid-container");
+const routeCardsContainer = document.getElementById("route-cards-container");
+const btnQuickRandomStudent = document.getElementById("btn-quick-random-student");
 
 const studentIdInput = document.getElementById("student-id");
 const studentNameInput = document.getElementById("student-name");
@@ -63,6 +66,58 @@ const tktStudentId = document.getElementById("tkt-student-id");
 const tktSeatNo = document.getElementById("tkt-seat-no");
 const tktRefCode = document.getElementById("tkt-ref-code");
 
+let cachedRoutes = [];
+
+// Realistic student sample profiles for instant testing
+const SAMPLE_STUDENTS = [
+  { id: "22BCE1089", name: "Rohan Mehta" },
+  { id: "21BIT0452", name: "Priya Patel" },
+  { id: "23BCS2104", name: "Ananya Iyer" },
+  { id: "21BEE0315", name: "Devansh Gupta" },
+  { id: "22BME1490", name: "Sneha Rao" },
+  { id: "20BCE0042", name: "Kunal Verma" },
+  { id: "22BEC0812", name: "Tanvi Deshmukh" },
+  { id: "23BCS0941", name: "Arjun Nair" }
+];
+
+// Initialize Saved Student Info
+function initPassengerInfo() {
+  const savedId = localStorage.getItem("campus_hopper_student_id");
+  const savedName = localStorage.getItem("campus_hopper_student_name");
+  if (savedId) studentIdInput.value = savedId;
+  if (savedName) studentNameInput.value = savedName;
+
+  // Auto-fill random if completely empty
+  if (!studentIdInput.value && !studentNameInput.value) {
+    applyRandomStudent(false);
+  }
+
+  studentIdInput.addEventListener("input", () => {
+    localStorage.setItem("campus_hopper_student_id", studentIdInput.value.trim());
+  });
+  studentNameInput.addEventListener("input", () => {
+    localStorage.setItem("campus_hopper_student_name", studentNameInput.value.trim());
+  });
+}
+
+function applyRandomStudent(notify = true) {
+  const profile = SAMPLE_STUDENTS[Math.floor(Math.random() * SAMPLE_STUDENTS.length)];
+  studentIdInput.value = profile.id;
+  studentNameInput.value = profile.name;
+  localStorage.setItem("campus_hopper_student_id", profile.id);
+  localStorage.setItem("campus_hopper_student_name", profile.name);
+  if (notify) {
+    playTone(620, "sine", 0.1);
+    showToast(`Loaded profile: ${profile.name} (${profile.id})`, "success");
+  }
+}
+
+if (btnQuickRandomStudent) {
+  btnQuickRandomStudent.addEventListener("click", () => applyRandomStudent(true));
+}
+
+initPassengerInfo();
+
 
 async function checkHealth() {
   try {
@@ -77,21 +132,91 @@ async function checkHealth() {
 }
 
 
+function renderRouteCards(routes) {
+  if (!routeCardsContainer) return;
+  routeCardsContainer.innerHTML = "";
+
+  routes.forEach(route => {
+    const isCurrent = activeRoute && activeRoute.id === route.id;
+    const card = document.createElement("div");
+    card.className = `route-card-item ${isCurrent ? "active" : ""}`;
+
+    card.innerHTML = `
+      <div class="route-card-top">
+        <span class="route-card-time">⏰ ${route.departure_time || "Scheduled"}</span>
+        <span class="route-card-badge">${isCurrent ? "SELECTED 📍" : "TAP TO VIEW"}</span>
+      </div>
+      <div class="route-card-title">${route.source}</div>
+      <div class="route-card-sub">➔ ${route.destination}</div>
+    `;
+
+    card.onclick = () => selectRoute(route);
+    routeCardsContainer.appendChild(card);
+  });
+}
+
+
+async function selectRoute(route) {
+  if (activeRoute && activeRoute.id === route.id) return;
+  
+  playTone(500, "triangle", 0.08);
+  activeRoute = route;
+
+  // Clear current selected seat & timer
+  if (currentLockTimer) clearInterval(currentLockTimer);
+  lockStatusBox.style.display = "none";
+  selectedSeat = null;
+  btnLockSeat.disabled = true;
+  btnConfirmBook.disabled = true;
+
+  // Update hero banner
+  routeOriginEl.textContent = activeRoute.source;
+  routeDestinationEl.textContent = activeRoute.destination;
+  if (routeDepartTimeEl) {
+    routeDepartTimeEl.textContent = `Depart: ${activeRoute.departure_time || "08:30 AM"}`;
+  }
+
+  // Highlight card
+  renderRouteCards(cachedRoutes);
+
+  // Fetch shuttle for this route
+  try {
+    const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
+    const shuttles = await shuttlesRes.json();
+    if (shuttles && shuttles.length > 0) {
+      activeShuttle = shuttles[0];
+      activeVehicleNoEl.textContent = activeShuttle.vehicle_number;
+      await loadSeats();
+    }
+  } catch (err) {
+    showToast("Error switching shuttle route.", "error");
+  }
+}
+
+
 async function loadRoutesAndShuttle() {
   try {
     const res = await fetch(`${API_BASE}/api/routes`);
     const routes = await res.json();
     if (routes && routes.length > 0) {
-      activeRoute = routes[0];
-      routeOriginEl.textContent = activeRoute.source;
-      routeDestinationEl.textContent = activeRoute.destination;
+      cachedRoutes = routes;
+      renderRouteCards(routes);
 
-      const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
-      const shuttles = await shuttlesRes.json();
-      if (shuttles && shuttles.length > 0) {
-        activeShuttle = shuttles[0];
-        activeVehicleNoEl.textContent = activeShuttle.vehicle_number;
-        await loadSeats();
+      if (!activeRoute) {
+        activeRoute = routes[0];
+        routeOriginEl.textContent = activeRoute.source;
+        routeDestinationEl.textContent = activeRoute.destination;
+        if (routeDepartTimeEl) {
+          routeDepartTimeEl.textContent = `Depart: ${activeRoute.departure_time || "08:30 AM"}`;
+        }
+
+        const shuttlesRes = await fetch(`${API_BASE}/api/shuttles?route_id=${activeRoute.id}`);
+        const shuttles = await shuttlesRes.json();
+        if (shuttles && shuttles.length > 0) {
+          activeShuttle = shuttles[0];
+          activeVehicleNoEl.textContent = activeShuttle.vehicle_number;
+          await loadSeats();
+        }
       }
     }
   } catch (err) {

@@ -46,7 +46,7 @@
           <div class="stop-info">
             <span class="stop-tag">ORIGIN</span>
             <strong id="route-origin">Hostel Complex (Block 1-5)</strong>
-            <span class="stop-time">Depart: 08:30 AM</span>
+            <span class="stop-time" id="route-depart-time">Depart: 08:30 AM</span>
           </div>
         </div>
 
@@ -80,6 +80,14 @@
           <span class="label">REMAINING</span>
           <strong id="active-available" class="seats-left-pill">-- Free</strong>
         </div>
+      </div>
+    </section>
+
+    <!-- Route Selector Bar -->
+    <section class="route-selector-bar">
+      <div class="route-selector-label">🗺️ Available Routes — Pick yours</div>
+      <div class="route-cards-scroll" id="route-cards-container">
+        <div class="route-card-loading">Loading routes...</div>
       </div>
     </section>
 
@@ -151,7 +159,7 @@
               <label for="student-id">Student ID / Roll No</label>
               <div class="input-with-icon">
                 <span class="input-icon">🎓</span>
-                <input type="text" id="student-id" placeholder="e.g. 21BCE1042" required value="21BCE1042">
+                <input type="text" id="student-id" placeholder="e.g. 21BCE1042" required>
               </div>
             </div>
 
@@ -159,8 +167,15 @@
               <label for="student-name">Passenger Name</label>
               <div class="input-with-icon">
                 <span class="input-icon">👤</span>
-                <input type="text" id="student-name" placeholder="Your Full Name" required value="Aarav Sharma">
+                <input type="text" id="student-name" placeholder="Your Full Name" required>
               </div>
+            </div>
+
+            <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <button type="button" id="btn-quick-random-student" class="quick-fill-btn" title="Generate realistic student details for testing">
+                🎲 Random Student ID
+              </button>
+              <span style="font-size: 0.72rem; color: var(--text-dim);">Auto-saved locally</span>
             </div>
 
             <!-- 30-Second Lock Countdown Widget -->
@@ -244,7 +259,7 @@
           </div>
           <div class="hud-item">
             <span>Scraped Telemetry:</span>
-            <a href="http://localhost:8000/metrics" target="_blank" class="hud-link">View /metrics ↗</a>
+            <a href="/metrics" target="_blank" class="hud-link">View /metrics ↗</a>
           </div>
         </div>
       </aside>

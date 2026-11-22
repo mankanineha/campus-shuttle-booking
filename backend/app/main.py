@@ -41,56 +41,75 @@ POD_IP = os.getenv("POD_IP", "127.0.0.1")
 
 
 def seed_database(db: Session):
-    """Seed initial shuttle routes and seats if empty."""
-    if db.query(Route).count() == 0:
-        logger.info("Database is empty. Seeding initial shuttle schedule...")
-        
-        # Route 1: Morning Rush
-        r1 = Route(
-            source="Hostel Complex (Block 1-5)",
-            destination="Main Academic Block",
-            departure_time="08:30 AM"
-        )
-        # Route 2: Transit Connect
-        r2 = Route(
-            source="Central Library / Food Court",
-            destination="Metro Transit Station",
-            departure_time="05:15 PM"
-        )
-        db.add_all([r1, r2])
-        db.commit()
-        db.refresh(r1)
-        db.refresh(r2)
+    """Seed initial shuttle routes and seats if empty or expand with extra routes."""
+    routes_data = [
+        {
+            "source": "Hostel Complex (Block 1-5)",
+            "destination": "Main Academic Block",
+            "departure_time": "08:30 AM",
+            "vehicle": "CAMPUS-EXPRESS-01",
+            "capacity": 24,
+            "status": "BOARDING"
+        },
+        {
+            "source": "Central Library / Food Court",
+            "destination": "Metro Transit Station",
+            "departure_time": "05:15 PM",
+            "vehicle": "METRO-SHUTTLE-02",
+            "capacity": 24,
+            "status": "SCHEDULED"
+        },
+        {
+            "source": "Sports Arena & Student Gym",
+            "destination": "South Gate Tech Park",
+            "departure_time": "06:45 PM",
+            "vehicle": "TECH-HOPPER-03",
+            "capacity": 24,
+            "status": "SCHEDULED"
+        },
+        {
+            "source": "North Campus (Med & Law)",
+            "destination": "City Centre Junction",
+            "departure_time": "07:30 PM",
+            "vehicle": "CITY-CONNECT-04",
+            "capacity": 24,
+            "status": "SCHEDULED"
+        }
+    ]
 
-        # Shuttle 1 for Morning Rush (24 seats)
-        s1 = Shuttle(
-            route_id=r1.id,
-            vehicle_number="CAMPUS-EXPRESS-01",
-            capacity=24,
-            status="BOARDING"
-        )
-        # Shuttle 2 for Transit (24 seats)
-        s2 = Shuttle(
-            route_id=r2.id,
-            vehicle_number="METRO-SHUTTLE-02",
-            capacity=24,
-            status="SCHEDULED"
-        )
-        db.add_all([s1, s2])
-        db.commit()
-        db.refresh(s1)
-        db.refresh(s2)
+    for r_item in routes_data:
+        existing = db.query(Route).filter(
+            Route.source == r_item["source"],
+            Route.destination == r_item["destination"]
+        ).first()
+        if not existing:
+            r = Route(
+                source=r_item["source"],
+                destination=r_item["destination"],
+                departure_time=r_item["departure_time"]
+            )
+            db.add(r)
+            db.commit()
+            db.refresh(r)
 
-        # Seed Seats for both shuttles (e.g. 1A, 1B, 1C, 1D ... 6D)
-        for s in [s1, s2]:
+            s = Shuttle(
+                route_id=r.id,
+                vehicle_number=r_item["vehicle"],
+                capacity=r_item["capacity"],
+                status=r_item["status"]
+            )
+            db.add(s)
+            db.commit()
+            db.refresh(s)
+
             seat_rows = ["A", "B", "C", "D"]
             for row_idx in range(1, 7):
                 for seat_letter in seat_rows:
                     seat_num = f"{row_idx}{seat_letter}"
                     seat = Seat(shuttle_id=s.id, seat_number=seat_num, is_reserved=False)
                     db.add(seat)
-        db.commit()
-        logger.info("Database seeding completed with 2 routes and 48 seats.")
+            db.commit()
+            logger.info(f"Seeded route {r.source} -> {r.destination} with shuttle {s.vehicle_number}")
 
 
 @asynccontextmanager

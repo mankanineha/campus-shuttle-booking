@@ -881,6 +881,114 @@ button:disabled {
 .hud-link { color: #38bdf8; text-decoration: none; font-weight: 600; }
 .hud-link:hover { text-decoration: underline; }
 
+/* Route Selector Bar */
+.route-selector-bar {
+  margin-bottom: 24px;
+}
+
+.route-selector-label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.route-cards-scroll {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.route-card-item {
+  background: var(--bg-card);
+  border: 1.5px solid var(--bg-card-border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.route-card-item:hover {
+  border-color: var(--bus-yellow);
+  transform: translateY(-2px);
+  background: #18253f;
+}
+
+.route-card-item.active {
+  border-color: var(--bus-yellow);
+  background: #1a2845;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.2);
+}
+
+.route-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.route-card-time {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--bus-yellow);
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 8px;
+  border-radius: 6px;
+}
+
+.route-card-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--transit-green);
+  text-transform: uppercase;
+}
+
+.route-card-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.route-card-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-fill-btn {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+  border: 1px dashed #3b82f6;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.quick-fill-btn:hover {
+  background: rgba(59, 130, 246, 0.25);
+  color: #93c5fd;
+}
+
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; transform: scale(1); }
   50% { opacity: 0.6; transform: scale(0.95); }
